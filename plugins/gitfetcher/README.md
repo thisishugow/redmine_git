@@ -7,6 +7,7 @@
 - ✅ **可配置定時拉取**：每個 repo 可設定不同的同步間隔（支援秒、分、小時）
 - ✅ **熱更新配置**：修改 config.yaml 後自動重新載入，無需重啟
 - ✅ **Web UI 管理介面**：簡潔的 HTML 頁面查看狀態和手動觸發同步
+- ✅ **網頁配置編輯器**：直接在 Web UI 編輯配置，支援新增/刪除 repo，即時生效
 - ✅ **SSH Key 支援**：透過 volume 掛載 SSH keys，避免進入容器操作
 - ✅ **自動日誌記錄**：每次 fetch 結果記錄到日誌檔案
 - ✅ **狀態監控**：即時顯示每個 repo 的同步狀態、成功率、下次同步時間
@@ -15,13 +16,14 @@
 
 ### 1. 準備配置檔案
 
-複製範例配置並編輯：
+在專案根目錄建立 `gitfetcher-config.yaml`（與 Redmine 的 docker-compose.yml 同級）：
 
 ```bash
-cp config.example.yaml config.yaml
+cd /path/to/redmine_git
+cp plugins/gitfetcher/config.example.yaml gitfetcher-config.yaml
 ```
 
-編輯 `config.yaml`：
+編輯 `gitfetcher-config.yaml`：
 
 ```yaml
 repos:
@@ -39,6 +41,8 @@ ssh_key_path: "/root/.ssh/id_rsa"
 http_port: 8080
 log_path: "./logs"
 ```
+
+**提示**：配置也可以在啟動後透過 Web UI（http://localhost:8080）直接編輯。
 
 ### 2. 準備 SSH Keys
 
@@ -64,17 +68,19 @@ git clone --mirror git@github.com:username/repo.git repos/my-project.git
 
 ### 4. 啟動服務
 
-#### 使用 Docker Compose (推薦)
+#### 使用 Docker Compose (與 Redmine 整合)
+
+GitFetcher 已整合到主專案的 `docker-compose.yml` 中：
 
 ```bash
-# 複製範例
-cp docker-compose.example.yml docker-compose.yml
-
-# 啟動服務
+# 啟動所有服務（包含 Redmine 和 GitFetcher）
 docker-compose up -d
 
-# 查看日誌
-docker-compose logs -f
+# 僅啟動 GitFetcher
+docker-compose up -d gitfetcher
+
+# 查看 GitFetcher 日誌
+docker-compose logs -f gitfetcher
 ```
 
 #### 使用 Docker
@@ -116,42 +122,65 @@ go build -o bin/gitfetcher
 - 查看所有 repo 的同步狀態
 - 手動觸發立即同步
 - 監控成功率和錯誤訊息
+- **直接在網頁編輯配置**（點擊「編輯配置」按鈕）
 - 頁面每 5 秒自動刷新
+
+### 6. Web 配置編輯器
+
+無需手動編輯 YAML 檔案，可直接在 Web UI 管理配置：
+
+1. 點擊頁面上的「編輯配置」按鈕
+2. 在彈出視窗中修改全局配置（SSH Key 路徑、HTTP Port、日誌路徑）
+3. 新增、編輯或刪除 Repository 配置
+4. 點擊「儲存配置」後，變更會立即寫入 `gitfetcher-config.yaml`
+5. GitFetcher 自動偵測配置變更並重新載入（無需重啟容器）
+
+**注意事項**：
+- 配置編輯器會驗證欄位格式（如時間間隔、Port 範圍）
+- 儲存後可在日誌中看到 "Config file changed, reloading..." 訊息
+- 如果配置無效，會顯示錯誤訊息並保留原配置
 
 ## 與 Redmine 整合
 
-### Docker Compose 整合範例
+### Docker Compose 整合配置
+
+GitFetcher 已整合到主專案的 `docker-compose.yml` 中，完整配置如下：
 
 ```yaml
-version: '3.8'
-
 services:
   redmine:
-    image: redmine:latest
+    build: .
+    container_name: super_redmine_app
     volumes:
-      - repos:/usr/src/redmine/repos  # 共享 repo volume
-    networks:
-      - redmine_network
+      - redmine-repositories:/usr/src/redmine/repositories
 
   gitfetcher:
     build: ./plugins/gitfetcher
+    container_name: super_redmine_gitfetcher
+    restart: unless-stopped
     ports:
       - "8080:8080"
     volumes:
-      - ./plugins/gitfetcher/config.yaml:/app/config.yaml:ro
+      - ./gitfetcher-config.yaml:/app/config.yaml
       - ./ssh_keys:/root/.ssh:ro
-      - repos:/repos  # 與 Redmine 共享
-      - ./logs:/app/logs
-    networks:
-      - redmine_network
-    restart: unless-stopped
+      - redmine-repositories:/repos  # 與 Redmine 共享
+      - ./plugins/gitfetcher/logs:/app/logs
+    environment:
+      - TZ=Asia/Taipei
+
+  postgres_db:
+    image: postgres:15-alpine
+    # ... 資料庫配置
 
 volumes:
-  repos:
-
-networks:
-  redmine_network:
+  redmine-repositories:  # Redmine 和 GitFetcher 共享此 volume
 ```
+
+**重點說明**：
+- `redmine-repositories` volume 在 Redmine 和 GitFetcher 之間共享
+- GitFetcher 讀取專案根目錄的 `gitfetcher-config.yaml`
+- SSH keys 掛載為唯讀，避免容器內修改
+- 日誌輸出到 `plugins/gitfetcher/logs` 方便查看
 
 ### Redmine 中配置 Repository
 
@@ -186,13 +215,23 @@ networks:
 
 ## 熱更新配置
 
-修改 `config.yaml` 後，GitFetcher 會自動偵測並重新載入：
+GitFetcher 支援兩種方式更新配置，都會自動重新載入：
 
-1. 編輯 `config.yaml`
+### 方式 1：透過 Web UI（推薦）
+
+1. 開啟 http://localhost:8080
+2. 點擊「編輯配置」按鈕
+3. 在彈出視窗中修改配置
+4. 點擊「儲存配置」
+5. 自動生效（無需重啟）
+
+### 方式 2：手動編輯 YAML 檔案
+
+1. 編輯 `gitfetcher-config.yaml`
 2. 儲存檔案
 3. 等待數秒，自動生效（無需重啟）
 
-查看日誌確認：
+查看日誌確認熱更新：
 ```bash
 docker-compose logs -f gitfetcher
 # 應該看到 "Config file changed, reloading..." 和 "Config reloaded successfully"
@@ -264,6 +303,48 @@ make test-web
 
 所有測試都設計為可獨立執行，不需要依賴實際的 Redmine 環境。
 
+## API 端點
+
+GitFetcher 提供 RESTful API 供前端或外部系統使用：
+
+| 端點 | 方法 | 說明 |
+|------|------|------|
+| `/` | GET | Web UI 首頁 |
+| `/api/status` | GET | 取得所有 repo 的同步狀態 |
+| `/api/config` | GET | 取得當前配置（JSON 格式） |
+| `/api/config` | POST | 更新配置（JSON 格式） |
+| `/api/fetch/:name` | POST | 手動觸發指定 repo 的同步 |
+
+### API 範例
+
+```bash
+# 取得狀態
+curl http://localhost:8080/api/status
+
+# 取得配置
+curl http://localhost:8080/api/config
+
+# 更新配置
+curl -X POST http://localhost:8080/api/config \
+  -H "Content-Type: application/json" \
+  -d '{
+    "repos": [
+      {
+        "name": "my-project",
+        "url": "git@github.com:username/repo.git",
+        "local_path": "/repos/my-project.git",
+        "interval": "5m"
+      }
+    ],
+    "ssh_key_path": "/root/.ssh/id_rsa",
+    "http_port": 8080,
+    "log_path": "./logs"
+  }'
+
+# 手動觸發同步
+curl -X POST http://localhost:8080/api/fetch/my-project
+```
+
 ## 技術架構
 
 - **語言**：Go 1.23
@@ -272,6 +353,7 @@ make test-web
 - **檔案監控**：fsnotify
 - **容器**：Alpine Linux + Git + OpenSSH
 - **測試**：Go testing framework + httptest
+- **API**：RESTful JSON API
 
 ## 目錄結構
 

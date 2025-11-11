@@ -29,6 +29,28 @@ services:
       # REDMINE_SMTP_PORT: 587
       # REDMINE_SMTP_USER: "sender@your-company.com"
       # REDMINE_SMTP_PASSWORD: "password"
+
+  gitfetcher:
+    build: ./plugins/gitfetcher
+    container_name: super_redmine_gitfetcher
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    volumes:
+      # 配置檔案（建議先複製 config.example.yaml 到專案根目錄）
+      - ./gitfetcher-config.yaml:/app/config.yaml
+
+      # SSH keys（需要先準備好）
+      - ./ssh_keys:/root/.ssh:ro
+
+      # 與 Redmine 共享 repositories volume
+      - redmine-repositories:/repos
+
+      # Logs 輸出
+      - ./plugins/gitfetcher/logs:/app/logs
+    environment:
+      - TZ=Asia/Taipei
+
   postgres_db:
     image: postgres:15-alpine
     container_name: super_redmine_db

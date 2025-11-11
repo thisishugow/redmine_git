@@ -9,6 +9,6 @@ repos:
     local_path: "/repos/another-project.git"
     interval: "1h"
 
-ssh_key_path: "/root/.ssh/id_rsa"
+ssh_key_path: "/tmp/.ssh/id_ed25519"
 http_port: 8080
 log_path: "./logs"

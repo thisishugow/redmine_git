@@ -31,7 +31,9 @@ services:
       # REDMINE_SMTP_PASSWORD: "password"
 
   gitfetcher:
-    build: ./plugins/gitfetcher
+    build:
+      context: ./plugins/gitfetcher
+      dockerfile: Dockerfile
     container_name: super_redmine_gitfetcher
     restart: unless-stopped
     ports:

@@ -41,9 +41,15 @@ RUN mkdir -p /root/.ssh && \
     chmod 700 /root/.ssh && \
     chmod 600 /root/.ssh/config
 
-# Create entrypoint script to fix SSH key permissions at runtime
+# Create entrypoint script to fix SSH key permissions and Git config at runtime
 RUN echo '#!/bin/sh' > /entrypoint.sh && \
     echo 'set -e' >> /entrypoint.sh && \
+    echo '' >> /entrypoint.sh && \
+    echo '# Set HOME to /tmp for writable config files' >> /entrypoint.sh && \
+    echo 'export HOME=/tmp' >> /entrypoint.sh && \
+    echo '' >> /entrypoint.sh && \
+    echo '# Configure Git safe.directory in /tmp/.gitconfig' >> /entrypoint.sh && \
+    echo 'git config --global --add safe.directory "*"' >> /entrypoint.sh && \
     echo '' >> /entrypoint.sh && \
     echo '# Fix SSH key permissions if mounted' >> /entrypoint.sh && \
     echo 'if [ -d /root/.ssh ]; then' >> /entrypoint.sh && \
@@ -63,8 +69,6 @@ RUN echo '#!/bin/sh' > /entrypoint.sh && \
     echo '  echo "    UserKnownHostsFile=/dev/null" >> /tmp/.ssh/config' >> /entrypoint.sh && \
     echo '  chmod 600 /tmp/.ssh/config' >> /entrypoint.sh && \
     echo '  chmod 700 /tmp/.ssh' >> /entrypoint.sh && \
-    echo '  # Override SSH home' >> /entrypoint.sh && \
-    echo '  export HOME=/tmp' >> /entrypoint.sh && \
     echo 'fi' >> /entrypoint.sh && \
     echo '' >> /entrypoint.sh && \
     echo 'exec "$@"' >> /entrypoint.sh && \

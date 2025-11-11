@@ -42,7 +42,7 @@ func main() {
 	// Setup HTTP server
 	gin.SetMode(gin.ReleaseMode)
 	router := gin.Default()
-	handler := web.NewHandler(sched)
+	handler := web.NewHandler(sched, *configPath)
 	handler.SetupRoutes(router)
 
 	// Start config file watcher for hot reload

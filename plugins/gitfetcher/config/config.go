@@ -9,17 +9,17 @@ import (
 )
 
 type RepoConfig struct {
-	Name      string `yaml:"name"`
-	URL       string `yaml:"url"`
-	LocalPath string `yaml:"local_path"`
-	Interval  string `yaml:"interval"`
+	Name      string `yaml:"name" json:"name"`
+	URL       string `yaml:"url" json:"url"`
+	LocalPath string `yaml:"local_path" json:"local_path"`
+	Interval  string `yaml:"interval" json:"interval"`
 }
 
 type Config struct {
-	Repos      []RepoConfig `yaml:"repos"`
-	SSHKeyPath string       `yaml:"ssh_key_path"`
-	HTTPPort   int          `yaml:"http_port"`
-	LogPath    string       `yaml:"log_path"`
+	Repos      []RepoConfig `yaml:"repos" json:"repos"`
+	SSHKeyPath string       `yaml:"ssh_key_path" json:"ssh_key_path"`
+	HTTPPort   int          `yaml:"http_port" json:"http_port"`
+	LogPath    string       `yaml:"log_path" json:"log_path"`
 }
 
 // ParseInterval converts interval string (e.g., "5s", "10m", "1h") to time.Duration

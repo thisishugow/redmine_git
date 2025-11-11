@@ -25,6 +25,23 @@
             border-bottom: 2px solid #007bff;
             padding-bottom: 10px;
         }
+        .header-actions {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        .btn-config {
+            background: #28a745;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: bold;
+        }
+        .btn-config:hover { background: #218838; }
         .status-grid {
             display: grid;
             gap: 15px;
@@ -101,6 +118,10 @@
             background: #28a745;
         }
         .btn-reload:hover { background: #218838; }
+        .btn-delete {
+            background: #dc3545;
+        }
+        .btn-delete:hover { background: #c82333; }
         .refresh-info {
             text-align: right;
             color: #666;
@@ -118,24 +139,173 @@
             font-size: 12px;
             color: #666;
         }
+
+        /* Modal styles */
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.5);
+        }
+        .modal.show { display: block; }
+        .modal-content {
+            background-color: white;
+            margin: 50px auto;
+            padding: 30px;
+            border-radius: 8px;
+            width: 90%;
+            max-width: 800px;
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid #007bff;
+        }
+        .modal-header h2 {
+            margin: 0;
+            color: #333;
+        }
+        .close {
+            font-size: 28px;
+            font-weight: bold;
+            color: #aaa;
+            cursor: pointer;
+        }
+        .close:hover { color: #000; }
+        .form-group {
+            margin-bottom: 20px;
+        }
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 600;
+            color: #333;
+        }
+        .form-group input {
+            width: 100%;
+            padding: 8px 12px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+        .form-group input:focus {
+            outline: none;
+            border-color: #007bff;
+        }
+        .repo-editor {
+            border: 1px solid #ddd;
+            padding: 15px;
+            margin-bottom: 15px;
+            border-radius: 4px;
+            background: #f9f9f9;
+        }
+        .repo-editor-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+        .repo-editor-title {
+            font-weight: bold;
+            color: #007bff;
+        }
+        .btn-add {
+            background: #17a2b8;
+        }
+        .btn-add:hover { background: #138496; }
+        .btn-save {
+            background: #28a745;
+            padding: 10px 30px;
+            font-size: 16px;
+        }
+        .btn-save:hover { background: #218838; }
+        .alert {
+            padding: 12px 20px;
+            margin-bottom: 20px;
+            border-radius: 4px;
+        }
+        .alert-success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .alert-error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
     </style>
 </head>
 <body>
     <div class="container">
         <h1>GitFetcher - Repository Manager</h1>
 
+        <div class="header-actions">
+            <button class="btn-reload" onclick="loadStatus()">🔄 Refresh Status</button>
+            <button class="btn-config" onclick="openConfigModal()">⚙️ Configuration</button>
+        </div>
+
         <div class="status-grid" id="repoList">
             <div class="empty-state">Loading...</div>
         </div>
 
         <div class="refresh-info">
-            <button class="btn-reload" onclick="loadStatus()">🔄 Refresh Status</button>
             <span id="lastUpdate">Last updated: Never</span>
+        </div>
+    </div>
+
+    <!-- Configuration Modal -->
+    <div id="configModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Configuration Manager</h2>
+                <span class="close" onclick="closeConfigModal()">&times;</span>
+            </div>
+
+            <div id="configAlert"></div>
+
+            <form id="configForm" onsubmit="saveConfig(event)">
+                <!-- Global Settings -->
+                <div class="form-group">
+                    <label>SSH Key Path</label>
+                    <input type="text" id="ssh_key_path" placeholder="/root/.ssh/id_rsa">
+                </div>
+                <div class="form-group">
+                    <label>HTTP Port</label>
+                    <input type="number" id="http_port" placeholder="8080" min="1" max="65535">
+                </div>
+                <div class="form-group">
+                    <label>Log Path</label>
+                    <input type="text" id="log_path" placeholder="./logs">
+                </div>
+
+                <!-- Repositories -->
+                <h3 style="margin-top: 30px; margin-bottom: 15px;">Repositories</h3>
+                <div id="reposContainer"></div>
+
+                <button type="button" class="btn-add" onclick="addRepoEditor()">+ Add Repository</button>
+
+                <div style="margin-top: 30px; text-align: right;">
+                    <button type="button" onclick="closeConfigModal()">Cancel</button>
+                    <button type="submit" class="btn-save">💾 Save Configuration</button>
+                </div>
+            </form>
         </div>
     </div>
 
     <script>
         let autoRefreshInterval;
+        let currentConfig = null;
+        let repoEditorCount = 0;
 
         function formatTime(timestamp) {
             if (!timestamp) return 'Never';
@@ -171,13 +341,13 @@
                 .then(response => response.json())
                 .then(data => {
                     if (data.success) {
-                        alert(`Triggered fetch for ${repoName}`);
+                        showAlert('Triggered fetch for ' + repoName, 'success');
                         setTimeout(loadStatus, 1000);
                     } else {
-                        alert(`Failed: ${data.error}`);
+                        showAlert('Failed: ' + data.error, 'error');
                     }
                 })
-                .catch(err => alert('Error: ' + err));
+                .catch(err => showAlert('Error: ' + err, 'error'));
         }
 
         function loadStatus() {
@@ -187,7 +357,7 @@
                     const container = document.getElementById('repoList');
 
                     if (!data.repos || Object.keys(data.repos).length === 0) {
-                        container.innerHTML = '<div class="empty-state">No repositories configured</div>';
+                        container.innerHTML = '<div class="empty-state">No repositories configured. Click "Configuration" to add repositories.</div>';
                         return;
                     }
 
@@ -248,6 +418,143 @@
                     document.getElementById('repoList').innerHTML =
                         '<div class="empty-state">Failed to load status</div>';
                 });
+        }
+
+        function openConfigModal() {
+            document.getElementById('configModal').classList.add('show');
+            loadConfig();
+        }
+
+        function closeConfigModal() {
+            document.getElementById('configModal').classList.remove('show');
+        }
+
+        function loadConfig() {
+            fetch('/api/config')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        currentConfig = data.config;
+                        populateConfigForm(data.config);
+                    } else {
+                        showConfigAlert('Failed to load config: ' + data.error, 'error');
+                    }
+                })
+                .catch(err => showConfigAlert('Error loading config: ' + err, 'error'));
+        }
+
+        function populateConfigForm(config) {
+            document.getElementById('ssh_key_path').value = config.ssh_key_path || '';
+            document.getElementById('http_port').value = config.http_port || 8080;
+            document.getElementById('log_path').value = config.log_path || './logs';
+
+            const container = document.getElementById('reposContainer');
+            container.innerHTML = '';
+            repoEditorCount = 0;
+
+            if (config.repos && config.repos.length > 0) {
+                config.repos.forEach(repo => {
+                    addRepoEditor(repo);
+                });
+            }
+        }
+
+        function addRepoEditor(repo = null) {
+            const id = repoEditorCount++;
+            const container = document.getElementById('reposContainer');
+            const editor = document.createElement('div');
+            editor.className = 'repo-editor';
+            editor.id = `repo-${id}`;
+            editor.innerHTML = `
+                <div class="repo-editor-header">
+                    <span class="repo-editor-title">Repository ${id + 1}</span>
+                    <button type="button" class="btn-delete" onclick="removeRepo(${id})">Delete</button>
+                </div>
+                <div class="form-group">
+                    <label>Name *</label>
+                    <input type="text" name="name" required placeholder="e.g., my-project" value="${repo?.name || ''}">
+                </div>
+                <div class="form-group">
+                    <label>Git URL *</label>
+                    <input type="text" name="url" required placeholder="git@github.com:user/repo.git" value="${repo?.url || ''}">
+                </div>
+                <div class="form-group">
+                    <label>Local Path *</label>
+                    <input type="text" name="local_path" required placeholder="/repos/my-project.git" value="${repo?.local_path || ''}">
+                </div>
+                <div class="form-group">
+                    <label>Interval * (e.g., 5m, 1h, 30s)</label>
+                    <input type="text" name="interval" required placeholder="5m" value="${repo?.interval || '5m'}">
+                </div>
+            `;
+            container.appendChild(editor);
+        }
+
+        function removeRepo(id) {
+            const element = document.getElementById(`repo-${id}`);
+            if (element) {
+                element.remove();
+            }
+        }
+
+        function saveConfig(event) {
+            event.preventDefault();
+
+            const config = {
+                ssh_key_path: document.getElementById('ssh_key_path').value,
+                http_port: parseInt(document.getElementById('http_port').value) || 8080,
+                log_path: document.getElementById('log_path').value || './logs',
+                repos: []
+            };
+
+            // Collect all repo configs
+            const repoEditors = document.querySelectorAll('.repo-editor');
+            repoEditors.forEach(editor => {
+                const name = editor.querySelector('[name="name"]').value;
+                const url = editor.querySelector('[name="url"]').value;
+                const local_path = editor.querySelector('[name="local_path"]').value;
+                const interval = editor.querySelector('[name="interval"]').value;
+
+                if (name && url && local_path && interval) {
+                    config.repos.push({ name, url, local_path, interval });
+                }
+            });
+
+            if (config.repos.length === 0) {
+                showConfigAlert('At least one repository is required', 'error');
+                return;
+            }
+
+            // Save config
+            fetch('/api/config', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(config)
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    showConfigAlert(data.message, 'success');
+                    setTimeout(() => {
+                        closeConfigModal();
+                        loadStatus();
+                    }, 2000);
+                } else {
+                    showConfigAlert('Failed to save: ' + data.error, 'error');
+                }
+            })
+            .catch(err => showConfigAlert('Error: ' + err, 'error'));
+        }
+
+        function showConfigAlert(message, type) {
+            const alert = document.getElementById('configAlert');
+            alert.innerHTML = `<div class="alert alert-${type}">${message}</div>`;
+            setTimeout(() => alert.innerHTML = '', 5000);
+        }
+
+        function showAlert(message, type) {
+            // You can implement a global alert if needed
+            alert(message);
         }
 
         // Auto-refresh every 5 seconds

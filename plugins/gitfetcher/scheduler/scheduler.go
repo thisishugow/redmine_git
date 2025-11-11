@@ -107,10 +107,11 @@ func (s *Scheduler) executeFetch(name, localPath string) {
 		return
 	}
 	status.IsRunning = true
+	url := status.URL
 	s.mu.Unlock()
 
 	log.Printf("Fetching %s...", name)
-	result := s.fetcher.Fetch(name, localPath)
+	result := s.fetcher.Fetch(name, url, localPath)
 
 	s.mu.Lock()
 	status.IsRunning = false

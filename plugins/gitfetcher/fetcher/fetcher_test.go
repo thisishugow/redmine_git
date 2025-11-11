@@ -101,7 +101,7 @@ func TestFetchSuccess(t *testing.T) {
 	tmpDir := t.TempDir()
 	gf := NewGitFetcher("", tmpDir)
 
-	result := gf.Fetch("test-repo", bareRepo)
+	result := gf.Fetch("test-repo", bareRepo, bareRepo)
 
 	if result == nil {
 		t.Fatal("Fetch returned nil result")
@@ -124,7 +124,8 @@ func TestFetchNonexistentRepo(t *testing.T) {
 	tmpDir := t.TempDir()
 	gf := NewGitFetcher("", tmpDir)
 
-	result := gf.Fetch("nonexistent", "/nonexistent/repo")
+	// Invalid URL will cause clone to fail
+	result := gf.Fetch("nonexistent", "https://invalid-url-that-does-not-exist.example.com/repo.git", "/nonexistent/repo")
 
 	if result == nil {
 		t.Fatal("Fetch returned nil result")
@@ -160,7 +161,7 @@ func TestFetchInvalidRepo(t *testing.T) {
 	logDir := filepath.Join(tmpDir, "logs")
 	gf := NewGitFetcher("", logDir)
 
-	result := gf.Fetch("invalid-repo", notARepo)
+	result := gf.Fetch("invalid-repo", "https://fake.url", notARepo)
 
 	if result == nil {
 		t.Fatal("Fetch returned nil result")
@@ -192,7 +193,7 @@ func TestFetchWithSSHKey(t *testing.T) {
 	gf := NewGitFetcher(sshKeyPath, logDir)
 
 	// Note: This will still work because we're using local path, not SSH
-	result := gf.Fetch("test-repo", bareRepo)
+	result := gf.Fetch("test-repo", bareRepo, bareRepo)
 
 	if result == nil {
 		t.Fatal("Fetch returned nil result")
@@ -221,7 +222,7 @@ func TestLogResult(t *testing.T) {
 	bareRepo, cleanup := setupTestRepo(t)
 	defer cleanup()
 
-	gf.Fetch("test-repo", bareRepo)
+	gf.Fetch("test-repo", bareRepo, bareRepo)
 
 	// Check if log directory was created
 	if _, err := os.Stat(logDir); os.IsNotExist(err) {
@@ -267,5 +268,94 @@ func TestFetchResultFields(t *testing.T) {
 
 	if result.Message != "test message" {
 		t.Errorf("Expected Message 'test message', got '%s'", result.Message)
+	}
+}
+
+func TestCloneMirror(t *testing.T) {
+	// Skip if git is not available
+	if _, err := exec.LookPath("git"); err != nil {
+		t.Skip("git not found in PATH")
+	}
+
+	// Create source repository
+	sourceRepo, cleanup := setupTestRepo(t)
+	defer cleanup()
+
+	tmpDir := t.TempDir()
+	logDir := filepath.Join(tmpDir, "logs")
+	gf := NewGitFetcher("", logDir)
+
+	// Clone to a new location
+	targetRepo := filepath.Join(tmpDir, "cloned.git")
+	result := gf.Clone("test-repo", sourceRepo, targetRepo)
+
+	if result == nil {
+		t.Fatal("Clone returned nil result")
+	}
+
+	if !result.Success {
+		t.Errorf("Expected Success=true, got false. Message: %s", result.Message)
+	}
+
+	if result.RepoName != "test-repo" {
+		t.Errorf("Expected RepoName 'test-repo', got '%s'", result.RepoName)
+	}
+
+	// Verify cloned repo exists
+	if _, err := os.Stat(targetRepo); os.IsNotExist(err) {
+		t.Error("Cloned repository does not exist")
+	}
+
+	// Verify it's a bare/mirror repository
+	cmd := exec.Command("git", "-C", targetRepo, "config", "--get", "core.bare")
+	output, err := cmd.Output()
+	if err != nil {
+		t.Fatalf("Failed to check if repo is bare: %v", err)
+	}
+
+	if string(output) != "true\n" {
+		t.Errorf("Expected bare=true, got '%s'", string(output))
+	}
+}
+
+func TestFetchAutoClone(t *testing.T) {
+	// Skip if git is not available
+	if _, err := exec.LookPath("git"); err != nil {
+		t.Skip("git not found in PATH")
+	}
+
+	// Create source repository
+	sourceRepo, cleanup := setupTestRepo(t)
+	defer cleanup()
+
+	tmpDir := t.TempDir()
+	logDir := filepath.Join(tmpDir, "logs")
+	gf := NewGitFetcher("", logDir)
+
+	// Fetch on non-existent repo should auto-clone
+	targetRepo := filepath.Join(tmpDir, "auto-cloned.git")
+	result := gf.Fetch("test-repo", sourceRepo, targetRepo)
+
+	if result == nil {
+		t.Fatal("Fetch returned nil result")
+	}
+
+	if !result.Success {
+		t.Errorf("Expected Success=true for auto-clone, got false. Message: %s", result.Message)
+	}
+
+	// Verify repo was cloned
+	if _, err := os.Stat(targetRepo); os.IsNotExist(err) {
+		t.Error("Auto-cloned repository does not exist")
+	}
+
+	// Verify subsequent fetch works on the cloned repo
+	result2 := gf.Fetch("test-repo", sourceRepo, targetRepo)
+	if result2 == nil {
+		t.Fatal("Second fetch returned nil result")
+	}
+
+	if !result2.Success {
+		t.Errorf("Expected Success=true for second fetch, got false. Message: %s", result2.Message)
 	}
 }

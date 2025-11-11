@@ -29,19 +29,50 @@ func NewGitFetcher(sshKeyPath, logPath string) *GitFetcher {
 	}
 }
 
-// Fetch executes git fetch for a repository
-func (gf *GitFetcher) Fetch(name, localPath string) *FetchResult {
+// Clone executes git clone --mirror for a repository
+func (gf *GitFetcher) Clone(name, url, localPath string) *FetchResult {
 	result := &FetchResult{
 		RepoName:  name,
 		Timestamp: time.Now(),
 	}
 
-	// Check if repository exists
-	if _, err := os.Stat(localPath); os.IsNotExist(err) {
+	log.Printf("Cloning %s from %s to %s...", name, url, localPath)
+
+	// Prepare git clone --mirror command
+	cmd := exec.Command("git", "clone", "--mirror", url, localPath)
+
+	// Set SSH key if provided
+	if gf.sshKeyPath != "" {
+		sshCmd := fmt.Sprintf("ssh -i %s -o StrictHostKeyChecking=no", gf.sshKeyPath)
+		cmd.Env = append(os.Environ(), fmt.Sprintf("GIT_SSH_COMMAND=%s", sshCmd))
+	}
+
+	// Execute command
+	output, err := cmd.CombinedOutput()
+	if err != nil {
 		result.Success = false
-		result.Message = fmt.Sprintf("repository path does not exist: %s", localPath)
+		result.Message = fmt.Sprintf("clone failed: %v\nOutput: %s", err, string(output))
 		gf.logResult(result)
 		return result
+	}
+
+	result.Success = true
+	result.Message = fmt.Sprintf("Successfully cloned as mirror repository")
+	gf.logResult(result)
+	return result
+}
+
+// Fetch executes git fetch for a repository, clones if not exists
+func (gf *GitFetcher) Fetch(name, url, localPath string) *FetchResult {
+	result := &FetchResult{
+		RepoName:  name,
+		Timestamp: time.Now(),
+	}
+
+	// Check if repository exists, clone if not
+	if _, err := os.Stat(localPath); os.IsNotExist(err) {
+		log.Printf("Repository %s does not exist, cloning...", name)
+		return gf.Clone(name, url, localPath)
 	}
 
 	// Prepare git command

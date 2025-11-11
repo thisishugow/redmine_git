@@ -1,0 +1,34 @@
+version: '3.8'
+
+services:
+  gitfetcher:
+    build: .
+    container_name: gitfetcher
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    volumes:
+      # Config file
+      - ./config.yaml:/app/config.yaml:ro
+
+      # SSH keys (read-only)
+      - ./ssh_keys:/root/.ssh:ro
+
+      # Shared repository storage with Redmine
+      - repos:/repos
+
+      # Logs
+      - ./logs:/app/logs
+    environment:
+      - TZ=Asia/Taipei
+    networks:
+      - redmine_network
+
+volumes:
+  repos:
+    # This volume should be shared with your Redmine container
+
+networks:
+  redmine_network:
+    # This network should match your Redmine container's network
+    external: true

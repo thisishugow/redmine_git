@@ -1,0 +1,14 @@
+repos:
+  - name: "example-project"
+    url: "git@github.com:username/repo.git"
+    local_path: "/repos/example-project.git"
+    interval: "5m"
+
+  - name: "another-project"
+    url: "git@github.com:username/another.git"
+    local_path: "/repos/another-project.git"
+    interval: "1h"
+
+ssh_key_path: "/root/.ssh/id_rsa"
+http_port: 8080
+log_path: "./logs"

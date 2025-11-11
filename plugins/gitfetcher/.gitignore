@@ -1,0 +1,8 @@
+bin/
+logs/
+*.log
+coverage.out
+coverage.html
+config.yaml
+ssh_keys/
+repos/

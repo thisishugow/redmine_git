@@ -1,0 +1,48 @@
+services:
+  redmine:
+    # 關鍵：使用 "build: ." 來指定 "使用當前目錄的 Dockerfile"
+    # 而不是 "image: redmine:latest"
+    build: .
+    container_name: super_redmine_app
+    restart: always
+    ports:
+      - "3000:3000"
+    volumes:
+      - redmine_files:/usr/src/redmine/files
+      - redmine_themes:/usr/src/redmine/public/themes # (可選) 持久化主題
+      - redmine-repositories:/usr/src/redmine/repositories
+
+    # --------------------------------------------------------
+    # 關鍵：SMTP (電子郵件) 和資料庫配置
+    # --------------------------------------------------------
+    environment:
+      # --- 資料庫 (連接到下面的 postgres_db 服務) ---
+      REDMINE_DB_TYPE: postgresql
+      REDMINE_DB_POSTGRES: postgres_db
+      REDMINE_DB_HOST: postgres_db
+      REDMINE_DB_DATABASE: redmine
+      REDMINE_DB_USERNAME: redmine
+      REDMINE_DB_PASSWORD: "redmine" # ⚠️ 換成您的密碼
+
+      # --- (可選) SMTP (以其他自訂 Mail Server 為例) ---
+      # REDMINE_SMTP_HOST: "mail.your-company.com"
+      # REDMINE_SMTP_PORT: 587
+      # REDMINE_SMTP_USER: "sender@your-company.com"
+      # REDMINE_SMTP_PASSWORD: "password"
+  postgres_db:
+    image: postgres:15-alpine
+    container_name: super_redmine_db
+    restart: always
+    environment:
+      POSTGRES_DB: redmine
+      POSTGRES_USER: redmine
+      POSTGRES_PASSWORD: "redmine" # ⚠️ 必須與上面一致
+    volumes:
+      - redmine_postgres_data:/var/lib/postgresql/data
+
+# 定義 Docker 卷
+volumes:
+  redmine_files:
+  redmine_themes:
+  redmine_postgres_data:
+  redmine-repositories:

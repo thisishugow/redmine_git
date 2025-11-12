@@ -1,0 +1,29 @@
+# 執行檔（只 ignore 根目錄的 sync）
+/sync
+*.exe
+*.out
+
+# Go build cache
+*.test
+*.prof
+*.coverprofile
+
+# Logs
+logs/
+*.log
+
+# 配置檔（包含敏感資訊）
+config.yaml
+*-config.yaml
+!config.example.yaml
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db

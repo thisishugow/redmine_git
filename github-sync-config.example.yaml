@@ -1,0 +1,57 @@
+# Redmine-GitHub Issue Sync 配置檔範例
+# 使用前請複製為 github-sync-config.yaml 並填入實際值
+
+redmine:
+  # Redmine 伺服器 URL
+  url: "https://redmine.example.com"
+
+  # Redmine API Key（在 Redmine > 個人設定 > API access key）
+  api_key: "your-redmine-api-key-here"
+
+  # 要監控的專案列表
+  projects:
+    - identifier: "my-project"  # 專案識別碼（URL 中的名稱）
+      custom_fields:
+        # 「目標 GitHub Repo」custom field 的 ID
+        # 在 Redmine 管理介面建立後，從 API 回應中取得
+        target_repo_id: 10
+
+        # 「GitHub Issue URL」custom field 的 ID
+        github_issue_url_id: 11
+
+github:
+  # GitHub Personal Access Token (classic)
+  # 需要 repo 權限
+  token: "ghp_your_github_token_here"
+
+  # GitHub Base URL（如果是 GitHub Enterprise，修改此處）
+  base_url: "https://github.com"
+
+sync:
+  # 同步間隔（支援: 1m, 5m, 1h 等）
+  interval: "5m"
+
+  # GitHub issue title 格式
+  # %d = Redmine issue ID, %s = Redmine issue subject
+  title_format: "[Redmine #%d] %s"
+
+  # 錯誤處理
+  on_error:
+    # 是否記錄到 log 檔
+    log: true
+
+    # 是否在 Redmine issue 加註解
+    add_redmine_note: true
+
+    # Log 檔案路徑（容器內路徑）
+    log_file: "/app/logs/sync.log"
+
+# 資料庫配置（通常從環境變數讀取，這裡是本地開發用）
+database:
+  host: "${POSTGRES_HOST:localhost}"
+  port: ${POSTGRES_PORT:5432}
+  name: "${POSTGRES_DB:redmine}"
+  user: "${POSTGRES_USER:redmine}"
+  password: "${POSTGRES_PASSWORD:redmine}"
+  schema: "${POSTGRES_SCHEMA:redmine_github_sync}"
+  sslmode: "${POSTGRES_SSLMODE:disable}"

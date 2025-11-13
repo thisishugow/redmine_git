@@ -301,3 +301,43 @@ func TestConfigDefaults(t *testing.T) {
 	assert.Equal(t, "redmine_github_sync", cfg.Database.Schema)
 	assert.Equal(t, "disable", cfg.Database.SSLMode)
 }
+
+func TestGetDisplayURL(t *testing.T) {
+	tests := []struct {
+		name       string
+		config     RedmineConfig
+		expectURL  string
+	}{
+		{
+			name: "with display_url set",
+			config: RedmineConfig{
+				URL:        "http://redmine:3000",
+				DisplayURL: "http://192.168.1.100:3000",
+			},
+			expectURL: "http://192.168.1.100:3000",
+		},
+		{
+			name: "without display_url",
+			config: RedmineConfig{
+				URL:        "http://redmine:3000",
+				DisplayURL: "",
+			},
+			expectURL: "http://redmine:3000",
+		},
+		{
+			name: "display_url empty string",
+			config: RedmineConfig{
+				URL:        "https://redmine.example.com",
+				DisplayURL: "",
+			},
+			expectURL: "https://redmine.example.com",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := tt.config.GetDisplayURL()
+			assert.Equal(t, tt.expectURL, got)
+		})
+	}
+}

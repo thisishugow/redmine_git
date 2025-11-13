@@ -11,7 +11,8 @@ import (
 func TestBuildGitHubIssueBody(t *testing.T) {
 	cfg := &config.Config{
 		Redmine: config.RedmineConfig{
-			URL: "https://redmine.example.com",
+			URL:        "https://redmine.example.com",
+			DisplayURL: "", // 測試 fallback 到 URL
 		},
 	}
 
@@ -53,6 +54,35 @@ func TestBuildGitHubIssueBody(t *testing.T) {
 	assert.Contains(t, body, "This is a test issue")
 	assert.Contains(t, body, "with multiple lines")
 	assert.Contains(t, body, "https://redmine.example.com/issues/123")
+}
+
+func TestBuildGitHubIssueBodyWithDisplayURL(t *testing.T) {
+	cfg := &config.Config{
+		Redmine: config.RedmineConfig{
+			URL:        "http://redmine:3000",
+			DisplayURL: "http://192.168.1.100:3000",
+		},
+	}
+
+	syncer := &Syncer{
+		config: cfg,
+	}
+
+	issue := redmine.Issue{
+		ID:          789,
+		Subject:     "Test with display URL",
+		Description: "Testing display URL",
+		Project:     redmine.Project{Name: "Test"},
+		Tracker:     redmine.Tracker{Name: "Bug"},
+		Priority:    redmine.Priority{Name: "Normal"},
+		Author:      redmine.User{Name: "User"},
+		CreatedOn:   "2025-11-13T10:00:00Z",
+	}
+
+	body := syncer.buildGitHubIssueBody(issue)
+	// 應該使用 display_url，而不是 url
+	assert.Contains(t, body, "http://192.168.1.100:3000/issues/789")
+	assert.NotContains(t, body, "http://redmine:3000")
 }
 
 func TestBuildGitHubIssueBodyEmptyDescription(t *testing.T) {

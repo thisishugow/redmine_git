@@ -190,7 +190,7 @@ func (s *Syncer) buildGitHubIssueBody(issue redmine.Issue) string {
 	}
 
 	body += fmt.Sprintf("\n\n---\n*Synced from Redmine: %s/issues/%d*",
-		s.config.Redmine.URL, issue.ID)
+		s.config.Redmine.GetDisplayURL(), issue.ID)
 
 	return body
 }

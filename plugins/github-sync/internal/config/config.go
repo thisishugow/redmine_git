@@ -22,9 +22,10 @@ type Config struct {
 
 // RedmineConfig Redmine 配置
 type RedmineConfig struct {
-	URL      string          `mapstructure:"url"`
-	APIKey   string          `mapstructure:"api_key"`
-	Projects []ProjectConfig `mapstructure:"projects"`
+	URL        string          `mapstructure:"url"`
+	DisplayURL string          `mapstructure:"display_url"` // 可選，用於 GitHub issue 中顯示的 Redmine URL
+	APIKey     string          `mapstructure:"api_key"`
+	Projects   []ProjectConfig `mapstructure:"projects"`
 }
 
 // ProjectConfig 專案配置
@@ -174,6 +175,14 @@ func GetConfig() *Config {
 	configMu.RLock()
 	defer configMu.RUnlock()
 	return globalConfig
+}
+
+// GetDisplayURL 取得用於顯示的 Redmine URL（優先使用 DisplayURL，否則使用 URL）
+func (c *RedmineConfig) GetDisplayURL() string {
+	if c.DisplayURL != "" {
+		return c.DisplayURL
+	}
+	return c.URL
 }
 
 // GetReloadChannel 取得配置重載通知 channel

@@ -2,8 +2,14 @@
 # 使用前請複製為 github-sync-config.yaml 並填入實際值
 
 redmine:
-  # Redmine 伺服器 URL
+  # Redmine 伺服器 URL（用於 API 呼叫）
   url: "https://redmine.example.com"
+
+  # Redmine 顯示 URL（可選，用於 GitHub issue 中的連結）
+  # 如果不設定，會使用 url 的值
+  # 使用場景：當 API URL 是內部網路位址，但用戶需要從外部存取時
+  # 例如：url: "http://redmine:3000", display_url: "http://192.168.1.100:3000"
+  display_url: ""
 
   # Redmine API Key（在 Redmine > 個人設定 > API access key）
   api_key: "your-redmine-api-key-here"

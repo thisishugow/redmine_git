@@ -53,6 +53,36 @@ services:
     environment:
       - TZ=Asia/Taipei
 
+  github-sync:
+    build:
+      context: ./plugins/github-sync
+      dockerfile: Dockerfile
+    container_name: super_redmine_github_sync
+    restart: unless-stopped
+    volumes:
+      # 配置檔案（支援熱更新）
+      - ./github-sync-config.yaml:/app/config.yaml:ro
+
+      # Logs 輸出
+      - ./plugins/github-sync/logs:/app/logs
+    environment:
+      # PostgreSQL 連線（與 Redmine 共用資料庫）
+      - POSTGRES_HOST=postgres_db
+      - POSTGRES_PORT=5432
+      - POSTGRES_DB=redmine
+      - POSTGRES_USER=redmine
+      - POSTGRES_PASSWORD=redmine
+      - POSTGRES_SCHEMA=redmine_github_sync
+      - POSTGRES_SSLMODE=disable
+
+      # 配置檔路徑
+      - CONFIG_PATH=/app/config.yaml
+
+      # 時區
+      - TZ=Asia/Taipei
+    depends_on:
+      - postgres_db
+
   postgres_db:
     image: postgres:15-alpine
     container_name: super_redmine_db

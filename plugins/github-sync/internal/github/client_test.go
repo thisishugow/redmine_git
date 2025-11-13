@@ -29,11 +29,18 @@ func TestCreateIssue(t *testing.T) {
 		assert.Equal(t, "Test body", req.Body)
 		assert.Equal(t, []string{"bug", "from-redmine"}, req.Labels)
 
+		// 回傳的 issue 包含 label 物件
+		responseLabels := []Label{
+			{Name: "bug"},
+			{Name: "from-redmine"},
+		}
+
 		// 返回 mock issue
 		response := Issue{
 			Number:  123,
 			Title:   req.Title,
 			HTMLURL: "https://github.com/owner/repo/issues/123",
+			Labels:  responseLabels,
 		}
 
 		w.WriteHeader(http.StatusCreated)

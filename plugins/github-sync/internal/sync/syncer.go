@@ -3,6 +3,7 @@ package sync
 import (
 	"fmt"
 	"log"
+	"strings"
 
 	"colosscious.com/github-sync/internal/config"
 	"colosscious.com/github-sync/internal/github"
@@ -111,6 +112,14 @@ func (s *Syncer) syncIssue(issue redmine.Issue, project config.ProjectConfig) er
 	if targetRepo == "" {
 		log.Printf("Issue #%d has no target repo, skipping", issue.ID)
 		return nil
+	}
+
+	// 驗證 repo 格式（必須是 owner/repo）
+	if !strings.Contains(targetRepo, "/") {
+		errMsg := fmt.Sprintf("Invalid repo format '%s', expected 'owner/repo'", targetRepo)
+		log.Printf("Issue #%d: %s", issue.ID, errMsg)
+		s.handleError(issue.ID, errMsg)
+		return fmt.Errorf("invalid repo format: %s", targetRepo)
 	}
 
 	log.Printf("Syncing issue #%d to GitHub repo: %s", issue.ID, targetRepo)

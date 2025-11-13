@@ -19,14 +19,25 @@ type Client struct {
 	client  *http.Client
 }
 
+// Label GitHub label 結構（回傳時使用）
+type Label struct {
+	ID          int64  `json:"id,omitempty"`
+	NodeID      string `json:"node_id,omitempty"`
+	URL         string `json:"url,omitempty"`
+	Name        string `json:"name"`
+	Description string `json:"description,omitempty"`
+	Color       string `json:"color,omitempty"`
+	Default     bool   `json:"default,omitempty"`
+}
+
 // Issue GitHub issue 結構
 type Issue struct {
-	Number  int      `json:"number"`
-	Title   string   `json:"title"`
-	Body    string   `json:"body"`
-	State   string   `json:"state"`
-	HTMLURL string   `json:"html_url"`
-	Labels  []string `json:"labels,omitempty"`
+	Number  int     `json:"number"`
+	Title   string  `json:"title"`
+	Body    string  `json:"body"`
+	State   string  `json:"state"`
+	HTMLURL string  `json:"html_url"`
+	Labels  []Label `json:"labels,omitempty"`
 }
 
 // CreateIssueRequest 建立 issue 的請求

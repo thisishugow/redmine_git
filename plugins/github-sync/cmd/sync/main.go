@@ -2,6 +2,7 @@ package main
 
 import (
 	"flag"
+	"io"
 	"log"
 	"os"
 	"os/signal"
@@ -23,14 +24,17 @@ func main() {
 		log.Fatalf("Failed to load config: %v", err)
 	}
 
-	// 設定 log 輸出
+	// 設定 log 輸出（同時輸出到 stdout 和檔案）
 	if cfg.Sync.OnError.LogFile != "" {
 		logFile, err := os.OpenFile(cfg.Sync.OnError.LogFile, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644)
 		if err != nil {
 			log.Printf("Warning: Failed to open log file: %v", err)
 		} else {
 			defer logFile.Close()
-			log.SetOutput(logFile)
+			// 使用 MultiWriter 同時輸出到 stdout 和檔案
+			multiWriter := io.MultiWriter(os.Stdout, logFile)
+			log.SetOutput(multiWriter)
+			log.Printf("Logging to both stdout and %s", cfg.Sync.OnError.LogFile)
 		}
 	}
 

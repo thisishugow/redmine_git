@@ -17,6 +17,7 @@ type Config struct {
 	Redmine  RedmineConfig  `mapstructure:"redmine"`
 	GitHub   GitHubConfig   `mapstructure:"github"`
 	Sync     SyncConfig     `mapstructure:"sync"`
+	Webhook  WebhookConfig  `mapstructure:"webhook"`
 	Database DatabaseConfig `mapstructure:"database"`
 }
 
@@ -58,6 +59,13 @@ type ErrorConfig struct {
 	Log             bool   `mapstructure:"log"`
 	AddRedmineNote  bool   `mapstructure:"add_redmine_note"`
 	LogFile         string `mapstructure:"log_file"`
+}
+
+// WebhookConfig Webhook 配置
+type WebhookConfig struct {
+	Enabled bool   `mapstructure:"enabled"` // 是否啟用 webhook server
+	Port    int    `mapstructure:"port"`    // HTTP server 埠號
+	Secret  string `mapstructure:"secret"`  // HMAC 簽章密鑰（可選）
 }
 
 // DatabaseConfig 資料庫配置

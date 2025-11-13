@@ -31,9 +31,15 @@ WORKDIR /usr/src/redmine
 RUN bundle install --without development test
 
 # --------------------------------------------------------
-# 4. 建立 repositories 目錄（給 redmine_github 使用）
+# 4. 複製 Issue Notifier plugin（用於即時 webhook 通知）
 # --------------------------------------------------------
 USER root
+COPY plugins/redmine_issue_notifier /usr/src/redmine/plugins/redmine_issue_notifier
+RUN chown -R redmine:redmine /usr/src/redmine/plugins/redmine_issue_notifier
+
+# --------------------------------------------------------
+# 5. 建立 repositories 目錄（給 redmine_github 使用）
+# --------------------------------------------------------
 RUN mkdir -p /usr/src/redmine/repositories && \
     chown -R redmine:redmine /usr/src/redmine/repositories
 USER redmine

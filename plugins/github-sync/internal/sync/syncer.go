@@ -254,3 +254,53 @@ func (s *Syncer) UpdateConfig(cfg *config.Config) {
 	s.github = github.NewClient(cfg.GitHub)
 	log.Println("Syncer config updated")
 }
+
+// SyncSpecificIssue 同步特定的 issue（用於 webhook 觸發）
+func (s *Syncer) SyncSpecificIssue(issueID int, projectIdentifier string) error {
+	log.Printf("Webhook triggered: syncing issue #%d from project %s", issueID, projectIdentifier)
+
+	// 1. 找到對應的專案配置
+	var projectConfig *config.ProjectConfig
+	for _, p := range s.config.Redmine.Projects {
+		if p.Identifier == projectIdentifier {
+			projectConfig = &p
+			break
+		}
+	}
+
+	if projectConfig == nil {
+		return fmt.Errorf("project %s not found in configuration", projectIdentifier)
+	}
+
+	// 2. 檢查是否已同步
+	isSynced, err := s.storage.IsSynced(issueID)
+	if err != nil {
+		return fmt.Errorf("failed to check sync status: %w", err)
+	}
+
+	if isSynced {
+		log.Printf("Issue #%d already synced, skipping", issueID)
+		return nil
+	}
+
+	// 3. 從 Redmine 取得 issue 詳細資訊
+	issue, err := s.redmine.GetIssue(issueID)
+	if err != nil {
+		return fmt.Errorf("failed to get issue from Redmine: %w", err)
+	}
+
+	// 4. 檢查是否有設定 target repo
+	targetRepo := issue.GetCustomFieldValue(projectConfig.CustomFields.TargetRepoID)
+	if targetRepo == "" {
+		log.Printf("Issue #%d has no target repo, skipping", issueID)
+		return nil
+	}
+
+	// 5. 執行同步
+	if err := s.syncIssue(*issue, *projectConfig); err != nil {
+		return fmt.Errorf("failed to sync issue: %w", err)
+	}
+
+	log.Printf("✓ Webhook sync completed for issue #%d", issueID)
+	return nil
+}

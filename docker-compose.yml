@@ -24,6 +24,11 @@ services:
       REDMINE_DB_USERNAME: redmine
       REDMINE_DB_PASSWORD: "redmine" # ⚠️ 換成您的密碼
 
+      # --- GitHub Sync Webhook 設定（用於 Redmine Issue Notifier plugin）---
+      GITHUB_SYNC_WEBHOOK_URL: "http://github-sync:8080/webhook/issue-changed"
+      GITHUB_SYNC_WEBHOOK_SECRET: "your-webhook-secret-key-here"  # 需與 github-sync-config.yaml 一致
+      REDMINE_TARGET_REPO_FIELD_ID: "11"  # 你的「目標 GitHub Repo」custom field ID
+
       # --- (可選) SMTP (以其他自訂 Mail Server 為例) ---
       # REDMINE_SMTP_HOST: "mail.your-company.com"
       # REDMINE_SMTP_PORT: 587

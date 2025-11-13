@@ -35,6 +35,7 @@ github:
 
 sync:
   # 同步間隔（支援: 1m, 5m, 1h 等）
+  # 注意：啟用 webhook 後，這個間隔變成「備份輪詢」，確保沒有遺漏的 issue
   interval: "5m"
 
   # GitHub issue title 格式
@@ -51,6 +52,18 @@ sync:
 
     # Log 檔案路徑（容器內路徑）
     log_file: "/app/logs/sync.log"
+
+# Webhook 配置（即時同步，取代輪詢）
+webhook:
+  # 是否啟用 webhook server（建議：true）
+  enabled: true
+
+  # HTTP server 埠號
+  port: 8080
+
+  # HMAC-SHA256 簽章密鑰（可選但建議設定，用於驗證請求來源）
+  # 需與 Redmine plugin 的 GITHUB_SYNC_WEBHOOK_SECRET 環境變數一致
+  secret: "your-webhook-secret-key-here"
 
 # 資料庫配置（通常從環境變數讀取，這裡是本地開發用）
 database:

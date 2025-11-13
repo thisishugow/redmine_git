@@ -72,12 +72,17 @@ type CustomField struct {
 	Multiple bool        `json:"multiple,omitempty"`
 }
 
-// IssuesResponse API 回應
+// IssuesResponse API 回應（列表）
 type IssuesResponse struct {
 	Issues     []Issue `json:"issues"`
 	TotalCount int     `json:"total_count"`
 	Offset     int     `json:"offset"`
 	Limit      int     `json:"limit"`
+}
+
+// IssueResponse API 回應（單一 issue）
+type IssueResponse struct {
+	Issue Issue `json:"issue"`
 }
 
 // NewClient 建立 Redmine 客戶端
@@ -192,6 +197,37 @@ func (c *Client) UpdateCustomField(issueID, fieldID int, value string) error {
 	}
 
 	return nil
+}
+
+// GetIssue 取得特定 issue 的完整資訊（用於 webhook 觸發）
+func (c *Client) GetIssue(issueID int) (*Issue, error) {
+	endpoint := fmt.Sprintf("%s/issues/%d.json?include=attachments", c.baseURL, issueID)
+
+	req, err := http.NewRequest("GET", endpoint, nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create request: %w", err)
+	}
+
+	req.Header.Set("X-Redmine-API-Key", c.apiKey)
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := c.client.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("failed to send request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		return nil, fmt.Errorf("API returned status %d: %s", resp.StatusCode, string(body))
+	}
+
+	var issueResp IssueResponse
+	if err := json.NewDecoder(resp.Body).Decode(&issueResp); err != nil {
+		return nil, fmt.Errorf("failed to decode response: %w", err)
+	}
+
+	return &issueResp.Issue, nil
 }
 
 // AddNote 在 issue 加上註解

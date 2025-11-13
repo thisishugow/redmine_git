@@ -2,6 +2,7 @@ package main
 
 import (
 	"flag"
+	"fmt"
 	"io"
 	"log"
 	"os"
@@ -11,6 +12,7 @@ import (
 	"colosscious.com/github-sync/internal/config"
 	"colosscious.com/github-sync/internal/storage"
 	"colosscious.com/github-sync/internal/sync"
+	"colosscious.com/github-sync/internal/webhook"
 )
 
 func main() {
@@ -63,6 +65,26 @@ func main() {
 
 	// 建立排程器
 	scheduler := sync.NewScheduler(syncer, interval, config.GetReloadChannel())
+
+	// 啟動 webhook server（如果啟用）
+	if cfg.Webhook.Enabled {
+		webhookServer := webhook.NewServer(cfg, syncer)
+		webhookAddr := fmt.Sprintf(":%d", cfg.Webhook.Port)
+
+		log.Printf("Webhook server enabled on port %d", cfg.Webhook.Port)
+		if cfg.Webhook.Secret != "" {
+			log.Println("Webhook signature verification enabled")
+		}
+
+		// 在背景啟動 webhook server
+		go func() {
+			if err := webhookServer.Start(webhookAddr); err != nil {
+				log.Fatalf("Webhook server failed: %v", err)
+			}
+		}()
+	} else {
+		log.Println("Webhook server disabled (using polling mode only)")
+	}
 
 	// 處理優雅關閉
 	sigChan := make(chan os.Signal, 1)

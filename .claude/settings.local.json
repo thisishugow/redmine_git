@@ -3,7 +3,11 @@
     "allow": [
       "WebSearch",
       "Bash(mkdir:*)",
-      "Bash(cat:*)"
+      "Bash(cat:*)",
+      "Bash(go mod tidy:*)",
+      "Bash(find:*)",
+      "Bash(file:*)",
+      "WebFetch(domain:www.redmine.org)"
     ],
     "deny": [],
     "ask": []

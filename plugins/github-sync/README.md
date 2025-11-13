@@ -92,7 +92,14 @@ vim github-sync-config.yaml
 
 ```yaml
 redmine:
+  # Redmine API URL（用於 API 呼叫）
   url: "https://your-redmine.com"
+
+  # Redmine 顯示 URL（可選，用於 GitHub issue 中的連結）
+  # 使用場景：當 API URL 是內部網路位址時
+  # 例如：url: "http://redmine:3000", display_url: "http://192.168.1.100:3000"
+  display_url: ""
+
   api_key: "your-redmine-api-key"
   projects:
     - identifier: "my-project"
@@ -160,10 +167,49 @@ docker-compose logs -f github-sync
 - `sync.interval` - 同步間隔
 - `sync.title_format` - 標題格式
 - `redmine.projects` - 專案列表
+- `redmine.display_url` - 顯示 URL（下方有詳細說明）
 - GitHub/Redmine 設定
 
 **不可熱更新的項目**（需重啟）：
 - 資料庫連線資訊
+
+## 進階配置
+
+### Display URL 配置
+
+當你的 Redmine 部署在 Docker 內部網路時，會遇到以下問題：
+
+**問題場景**：
+- API 呼叫需要使用內部 URL：`http://redmine:3000`
+- 但 GitHub issue 中的連結需要讓外部用戶能訪問：`http://192.168.181.245:13000`
+
+**解決方案**：使用 `display_url` 配置
+
+```yaml
+redmine:
+  # API 呼叫用（Docker 內部網路）
+  url: "http://redmine:3000"
+
+  # GitHub issue 連結顯示用（外部可訪問）
+  display_url: "http://192.168.181.245:13000"
+```
+
+**效果**：
+- 服務使用 `url` 來呼叫 Redmine API ✅
+- GitHub issue body 中的連結使用 `display_url` ✅
+- 如果不設定 `display_url`，會自動使用 `url` 的值
+
+**範例**：
+
+GitHub issue body 會顯示：
+```markdown
+**From Redmine Issue #123**
+...
+---
+*Synced from Redmine: http://192.168.181.245:13000/issues/123*
+```
+
+而不是內部無法訪問的 `http://redmine:3000/issues/123`
 
 ## 資料庫說明
 

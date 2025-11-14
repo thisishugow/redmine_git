@@ -1,6 +1,7 @@
 require 'net/http'
 require 'uri'
 require 'json'
+require 'openssl'
 
 class IssueNotifierHook < Redmine::Hook::Listener
   # Hook 會在 issue 儲存後觸發（包括建立和更新）
@@ -22,7 +23,8 @@ class IssueNotifierHook < Redmine::Hook::Listener
     end
 
     # 檢查 issue 是否有設定「目標 GitHub Repo」
-    target_repo = issue.custom_field_value(target_repo_field_id)
+    custom_value = issue.custom_value_for(target_repo_field_id)
+    target_repo = custom_value&.value
 
     # 如果沒有設定目標 repo，不需要通知
     return if target_repo.blank?
@@ -30,46 +32,60 @@ class IssueNotifierHook < Redmine::Hook::Listener
     Rails.logger.info "[IssueNotifier] Issue ##{issue.id} has target repo: #{target_repo}, notifying github-sync..."
 
     # 非同步發送通知（避免阻塞 Redmine 請求）
-    Thread.new do
+    thread = Thread.new do
       begin
-        uri = URI(webhook_url)
+        ActiveRecord::Base.connection_pool.with_connection do
+          uri = URI(webhook_url)
 
-        # 準備 payload
-        payload = {
-          issue_id: issue.id,
-          project_identifier: issue.project.identifier,
-          target_repo: target_repo,
-          action: context[:action] || 'updated',
-          timestamp: Time.now.utc.iso8601
-        }
+          # 準備 payload
+          # 注意：判斷是新建立還是更新（透過 issue.created_on 和 updated_on 比較）
+          action = if issue.created_on == issue.updated_on
+                     'created'
+                   else
+                     'updated'
+                   end
 
-        # 建立 HTTP request
-        request = Net::HTTP::Post.new(uri.path, {'Content-Type' => 'application/json'})
-        request.body = payload.to_json
+          payload = {
+            issue_id: issue.id,
+            project_identifier: issue.project.identifier,
+            target_repo: target_repo,
+            action: action,
+            timestamp: Time.now.utc.iso8601
+          }
 
-        # 如果有設定 secret，加上簽章
-        if webhook_secret.present?
-          signature = OpenSSL::HMAC.hexdigest('SHA256', webhook_secret, request.body)
-          request['X-Webhook-Signature'] = "sha256=#{signature}"
+          # 建立 HTTP request
+          request = Net::HTTP::Post.new(uri.path, {'Content-Type' => 'application/json'})
+          request.body = payload.to_json
+
+          # 如果有設定 secret，加上簽章
+          if webhook_secret.present?
+            signature = OpenSSL::HMAC.hexdigest('SHA256', webhook_secret, request.body)
+            request['X-Webhook-Signature'] = "sha256=#{signature}"
+          end
+
+          # 發送請求（timeout 5 秒）
+          response = Net::HTTP.start(uri.hostname, uri.port, use_ssl: uri.scheme == 'https',
+                                     open_timeout: 5, read_timeout: 5) do |http|
+            http.request(request)
+          end
+
+          if response.is_a?(Net::HTTPSuccess)
+            Rails.logger.info "[IssueNotifier] Successfully notified github-sync for issue ##{issue.id}"
+          else
+            Rails.logger.error "[IssueNotifier] Failed to notify github-sync: #{response.code} #{response.message}"
+          end
         end
 
-        # 發送請求（timeout 5 秒）
-        response = Net::HTTP.start(uri.hostname, uri.port, use_ssl: uri.scheme == 'https',
-                                   open_timeout: 5, read_timeout: 5) do |http|
-          http.request(request)
-        end
-
-        if response.is_a?(Net::HTTPSuccess)
-          Rails.logger.info "[IssueNotifier] Successfully notified github-sync for issue ##{issue.id}"
-        else
-          Rails.logger.error "[IssueNotifier] Failed to notify github-sync: #{response.code} #{response.message}"
-        end
-
-      rescue => e
+      rescue StandardError => e
         Rails.logger.error "[IssueNotifier] Error notifying github-sync: #{e.class} - #{e.message}"
         Rails.logger.error e.backtrace.join("\n") if Rails.env.development?
+      ensure
+        ActiveRecord::Base.connection_pool.release_connection
       end
     end
+
+    # 設定 thread 異常處理（Rails 最佳實踐）
+    thread.abort_on_exception = false
   end
 
   # 也可以監聽 bulk edit
